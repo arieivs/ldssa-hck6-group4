@@ -140,7 +140,6 @@ def check_categorical_values(response):
         "Ethnicity": ['Not Span/Hispanic', 'Unknown', 'Spanish/Hispanic', 'Multi-ethnic'],
         "Type of Admission": ['Emergency', 'Elective', 'Urgent', 'Newborn', 'Not Available','Trauma'],
         "APR Severity of Illness Description": ['Moderate', 'Minor', 'Major', 'Extreme'],
-        "APR Severity of Illness Code": ['1', '2', '3', '4'],
         "APR Risk of Mortality": ['Minor', 'Moderate', 'Major', 'Extreme'],
         "APR Medical Surgical Description": ['Medical', 'Surgical', 'Not Applicable'],
         "Payment Typology 1": [
@@ -171,7 +170,7 @@ def check_numerical_values(response):
         if response['observation'][category] < 0:
             respond_error(response['observation_id'], f"{category} cannot be negative.")
 
-    int_categories = ["CCS Diagnosis Code", "CCS Procedure Code", "APR DRG Code", "APR MDC Code"]
+    int_categories = ["CCS Diagnosis Code", "CCS Procedure Code", "APR DRG Code", "APR MDC Code", "APR Severity of Illness Code"]
     for category in int_categories:
         try:
             response['observation'][category] = int(response['observation'][category])
@@ -183,6 +182,8 @@ def check_numerical_values(response):
             respond_error(response['observation_id'], f"Invalid {code}.")
     if response['observation']["APR MDC Code"] < 0 or response['observation']["APR MDC Code"] > 25:
         respond_error(response['observation_id'], "Invalid APR MDC Code.")
+    if response['observation']["APR Severity of Illness Code"] not in range(1,5):
+        respond_error(response['observation_id'], "Invalid APR Severity of Illness Code.")
     # Birth Weight is not mandatory, there's a lot of missing values as zero
     if "Birth Weight" in response['observation']:
         try:
