@@ -237,11 +237,11 @@ def predict():
 # 3.3 Validate updates input
 def check_update(request):
     try:
-        observation_id = payload['observation_id']
+        observation_id = request['observation_id']
     except KeyError:
         return respond_error(None, "Observation has no ID.")
     try:
-        true_value = payload['true_value']
+        true_value = request['true_value']
     except KeyError:
         return respond_error(observation_id, "Observation has no true value.")
     for key in request:
@@ -264,20 +264,16 @@ def update():
     if 'error' in response:
         return jsonify(response)
     observation_id = response['observation_id']
+    true_value = response['true_value']
 
-    # true_class = payload['true_class']
-    # try:
-    #     prediction = Prediction.get(Prediction.pred_id == input_id)
-    #     prediction.true_class = true_class
-    #     prediction.save()
-    #     return jsonify(model_to_dict(prediction))
-    # except Prediction.DoesNotExist:
-    #     error_msg = f"Observation ID: {input_id} does not exist"
-    #     response = {"error": error_msg}
-    #     print(error_msg)
-    #     return jsonify(response)
-    print(f"Received update for observation {observation_id}!")
-    return jsonify({'observation_id': observation_id})
+    # update the database
+    try:
+        prediction_obj = Prediction.get(Prediction.observation_id == observation_id)
+        prediction_obj.true_value = true_value
+        prediction_obj.save()
+    except Prediction.DoesNotExist:
+        return jsonify(respond_error(observation_id, f"Observation ID {observation_id} does not exists."))
+    return jsonify({'observation_id': observation_id, 'true_value': true_value})
 
 
 # 3.X Run the App
