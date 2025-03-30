@@ -9,4 +9,4 @@ Flask==3.1.0              # S06
 peewee==3.17.9            # S06
 psycopg2-binary==2.9.10
 gunicorn==23.0.0
-
+lightgbm==4.6.0
