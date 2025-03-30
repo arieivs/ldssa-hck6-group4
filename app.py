@@ -13,27 +13,28 @@ from playhouse.shortcuts import model_to_dict
 from playhouse.db_url import connect
 
 # 1. DESERIALIZE
-# with open('columns.json') as c_fd:
-#     columns = json.load(c_fd)
+with open('columns.json') as c_fd:
+    columns = json.load(c_fd)
 
-# with open('dtypes.pickle', 'rb') as t_fd:
-#     dtypes = pickle.load(t_fd)
+with open('dtypes.pickle', 'rb') as t_fd:
+    dtypes = pickle.load(t_fd)
 
-# pipeline = joblib.load('pipeline.pickle')
+pipeline = joblib.load('pipeline.pickle')
 
 # 2. DATABASE
-# DB = connect(os.environ.get('DATABASE_URL') or 'sqlite:///predictions.db')
+DB = connect(os.environ.get('DATABASE_URL') or 'sqlite:///predictions.db')
 
-# class Prediction(Model):
-#     observation_id = TextField(unique=True)
-#     #observation = TextField() # THINK: what to put here
-#     prediction = IntegerField() # THINK: if a float is received, should convert it?
-#     true_value = IntegerField(null=True)
+# Note: It would be nicer to have a field per feature but there is no time right now
+class Prediction(Model):
+    observation_id = TextField(unique=True)
+    observation = TextField()
+    prediction = IntegerField()
+    true_value = IntegerField(null=True)
 
-#     class Meta:
-#         database = DB
+    class Meta:
+        database = DB
 
-# DB.create_tables([Prediction], safe=True)
+DB.create_tables([Prediction], safe=True)
 
 # 3. APP
 app = Flask(__name__)
@@ -188,7 +189,7 @@ def check_numerical_values(response):
             response['observation']["Birth Weight"] = int(response['observation']["Birth Weight"])
         except ValueError:
             respond_error(response['observation_id'], "Birth Weight should be an integer.")
-        if response['observation']["Birth Weight"] < 0
+        if response['observation']["Birth Weight"] < 0:
             respond_error(response['observation_id'], "Birth Weight cannot be negative.")
     else:
         response['observation']["Birth Weight"] = 0
@@ -217,30 +218,21 @@ def predict():
     if 'error' in response:
         return jsonify(response)
     observation_id = response['observation_id']
+    observation = response['observation']
 
     # predict
-    # try:
-    #     obs_df = pd.DataFrame([observation], columns=columns).astype(dtypes)
-    # except ValueError:
-    #     error_msg = f"Observation is invalid!"
-    #     response = {"error": error_msg}
-    #     print(error_msg)
-    #     return jsonify(response)
-    # proba = pipeline.predict_proba(obs_df)[0, 1]
-    # response = {'proba': proba}
+    obs_df = pd.DataFrame([observation], columns=columns).astype(dtypes)
+    prediction = int(pipeline.predict(obs_df)[0])
 
     # store in database
-    # prediction = Prediction(pred_id=input_id, observation=observation, proba=proba)
-    # try:
-    #     prediction.save()
-    # this is not ideal - we are doing the work of getting the prediction for cases when it might not be necessary
-    # except IntegrityError:
-    #     error_msg = f"Observation ID: {input_id} already exists"
-    #     response["error"] = error_msg
-    #     print(error_msg)
-    #     DB.rollback()
-    print(f"Received prediction for observation {observation_id}!")
-    return jsonify({'observation_id': observation_id})
+    prediction_obj = Prediction(observation_id=observation_id, observation=observation, prediction=prediction)
+    try:
+        prediction_obj.save()
+    # Note: this is not ideal - we are doing the work of getting the prediction for cases when it might not be necessary
+    except IntegrityError:
+        DB.rollback()
+        return jsonify(respond_error(observation_id, f"Observation ID {observation_id} already exists."))
+    return jsonify({'observation_id': observation_id, 'prediction': prediction})
 
 # 3.3 Validate updates input
 def check_update(request):
